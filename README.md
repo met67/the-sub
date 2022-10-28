@@ -30,7 +30,7 @@ In so doing, DON'T TRUST THE COLOR CODING and ask the vendor for the right conne
 Then, using the 4-wires phone cord, connect VCC to PIN 3V, GND to PIN G, DT to PIN27 and SCK to PIN26 and you are done (you can use other pins for DT and SCK, but then you must reflect the change in YAML code).
 
 ## Assembly
-Using some nuts and bolts, built four foot for the load cells, then fix them to the bottom of the Monitor Stand (I was quite lucky and the holes in the stand exactly matched the holes in the load cells...)
+Use some of the nuts and bolts to build four foot for the load cells, then fix them to the bottom of the Monitor Stand (I was quite lucky and the holes in the stand exactly matched the holes in the load cells...)
 <p align="center">
   <img src="photo/LoadCell.jpg" width="60%"/>
 </p>
