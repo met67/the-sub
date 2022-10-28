@@ -1,0 +1,561 @@
+substitutions:
+  devicename: the-sub
+  upper_devicename: The Sub
+  deviceid: the_sub
+
+esphome:
+  name: ${devicename}
+  platform: ESP32
+  board: featheresp32
+  on_boot:
+    then:
+      - script.execute: timer_backlight
+
+animation:
+  - file: "gifs/loop60x60.gif"
+    id: spinloop
+    type: GRAYSCALE
+
+font:
+  - file: 'fonts/Roboto-Regular.ttf'
+    id: font_button
+    size: 18
+    glyphs: "-<>°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz"
+  - file: 'fonts/Roboto-Regular.ttf'
+    id: font_main
+    size: 64
+    glyphs: "?!%()+,-/_.:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz"
+  - file: 'fonts/Roboto-Regular.ttf'
+    id: font_msg
+    size: 36
+    glyphs: "?!%()+,-/_.:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz"
+  - file: 'fonts/Roboto-Regular.ttf'
+    id: font_dbg
+    glyphs: "?!%()+,-/_.:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz"
+    size: 24
+
+# COLORS ARE IN RGB565 format
+color:
+  - id: color_red
+    red:   100%
+    green:   0%
+    blue:    0%    
+  - id: color_green
+    red:     0%
+    green: 100%
+    blue:    0%    
+  - id: color_blue
+    red:     0%
+    green:   0%
+    blue:  100%    
+  - id: color_yellow
+    red:   100%
+    green: 100%
+    blue:    0%    
+  - id: color_yellow_alt
+    red:   100%
+    green:  79%
+    blue:    0%    
+  - id: color_cyan
+    red:     0%
+    green: 100%
+    blue:  100%    
+  - id: color_orange
+    red:   100%
+    green:  60%
+    blue:    0%    
+  - id: color_white
+    red:    90%
+    green:  90%
+    blue:   90%
+  - id: color_grey
+    red:    70%
+    green:  70%
+    blue:   70%
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_pass
+  fast_connect: true
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "esphome_${deviceid}"
+
+captive_portal:
+
+# Set up HTTP server
+web_server:
+  port: 80
+
+## Set up HTTP client
+http_request:
+  useragent: esphome/device
+  timeout: 5s
+
+
+# # Enable Home Assistant API
+api:
+
+ota:
+
+time:
+  - platform: homeassistant
+    id: esp_time
+
+# Enable logging
+logger:
+  level: DEBUG
+
+globals:
+  - id: torp_time
+    type: time_t
+    restore_value: true
+  - id: raw_min
+    type: double
+    initial_value: '300000'
+  - id: raw_empty
+    type: double
+    initial_value: '369595'
+    restore_value: true
+  - id: raw_full
+    type: double
+    initial_value: '481468'
+    restore_value: true
+  - id: prev_x
+    type: double
+    initial_value: '200'
+
+sensor:
+  # Base level built from a weight sensor, used for further sensors
+  - platform: hx711
+    id: base_beer_level
+    # name: ${upper_devicename} Base Beer Level
+    internal: true
+    dout_pin: GPIO27
+    clk_pin: GPIO26
+    # Values: 32, 64 e 128
+    gain: 64
+    update_interval: 1s
+    accuracy_decimals: 0
+    #
+    # Filters:
+    #   1. Filters out spurious readings (too low)
+    #   2. Convert reading in 0-200cl range
+    #   3. Assures value is in the 0-200cl range
+    #
+    filters:
+      - lambda: |-
+          return (x<id(raw_min)) ? id(prev_x) : round(200*( (x-id(raw_empty)) / (id(raw_full)-id(raw_empty)) ));
+      - lambda: |-
+          return (x>200.0) ? 200.0 : x;
+      - lambda: |-
+          return (x<0.0) ? 0.0 : x;
+    unit_of_measurement: "cl"
+
+  # The beer level updated in real time, used to display the level in the LCD
+  - platform: copy
+    id: display_beer_level
+    name: ${upper_devicename} Display Beer Level
+    internal: true
+    source_id: base_beer_level
+    #
+    # Filters:
+    #   1. Filters out increases (over 5 cl), on the assumption that beer
+    #      can only decrease and they are probably due to pressure during tapping
+    #
+    filters:
+      - lambda: |-
+          return (x>id(prev_x)+5) ? id(prev_x) : x;
+      - lambda: |-
+          return (id(prev_x) = x);
+
+  # The beer level sensor is debounced when stable for 20s (stable within 1cl range)
+  - platform: copy
+    id: beer_level
+    name: ${upper_devicename} Beer Level
+    source_id: base_beer_level
+    #
+    # Filters:
+    #   1. Ignore ripples within 1cl range
+    #   2. Debounce level passing only values stable for at least 30s 
+    #
+    filters:
+      - delta: 1.0
+      - debounce: 30s
+    on_value:
+      then:
+        - lambda: |-
+            id(prev_x) = x;
+
+    # Turns on backlight when weight if over full torp by 10%
+  - platform: template
+    id: beer_percentage
+    # name: ${upper_devicename} Beer percentage
+    internal: true
+    update_interval: 0.5s
+    lambda: |-
+      return id(base_beer_level).raw_state;
+    filters:
+      - lambda: return 100*( (x-id(raw_empty)) / (id(raw_full)-id(raw_empty)) );
+    on_value_range:
+      above: 110.0
+      then:
+        - script.execute: timer_backlight
+
+  - platform: template
+    # id: torp_loaded
+    name: ${upper_devicename} Torp Loaded
+    device_class: timestamp
+    lambda: |-
+      return id(torp_time);
+
+binary_sensor:
+  #
+  # Top button (wrt USB on DX side)
+  #
+  - platform: gpio
+    pin:
+      number: GPIO35
+      inverted: true
+    id: button_input_1
+    on_click:
+      then:
+        if:
+          condition:
+            switch.is_off: backlight
+          then:
+            - script.execute: timer_backlight
+          else:
+            if:
+              condition:
+                display.is_displaying_page: page_gauge
+              then:
+                # Top Single Click, Level mode: switch to Age mode
+                - display.page.show: page_age
+                - script.execute: timer_backlight
+                - component.update: ttgo_display
+              else:
+                if:
+                  condition:
+                    display.is_displaying_page: page_age
+                  then:
+                    # Top Single Click, Age mode: switch to Level mode
+                    - display.page.show: page_gauge
+                    - script.execute: timer_backlight
+                    - component.update: ttgo_display
+                  else:
+                    if:
+                        condition:
+                          display.is_displaying_page: page_set_full
+                        then:
+                          # Top Single Click, Calibrate Full mode: cancel
+                          - display.page.show: page_gauge
+                          - script.execute: timer_backlight
+                          - component.update: ttgo_display
+                        else:
+                          if:
+                              condition:
+                                display.is_displaying_page: page_set_empty
+                              then:
+                                # Top Single Click, Calibrate Empty mode: confirm set empty
+                                - display.page.show: page_calibrating
+                                - script.execute: timer_backlight
+                                - delay: 5s
+                                - lambda: |-
+                                    id(raw_empty) = id(base_beer_level).raw_state;
+                                    id(prev_x) = 0.0;
+                                - display.page.show: page_gauge
+                                - script.execute: timer_backlight
+                                - component.update: ttgo_display
+                              else:
+                                if:
+                                  condition:
+                                    display.is_displaying_page: page_load_torp
+                                  then:
+                                    # Top Single Click, Age reset: cancel
+                                    - display.page.show: page_age
+                                    - script.execute: timer_backlight
+                                    - component.update: ttgo_display
+    on_multi_click:
+      - timing:
+        - ON for at most 1s
+        - OFF for at most 1s
+        - ON for at least 1s
+        then:
+          if:
+            condition:
+              display.is_displaying_page: page_dbg
+            then:
+              # Top Double Click, Debug mode: switch to Level mode
+              - display.page.show: page_gauge
+              - script.execute: timer_backlight
+              - component.update: ttgo_display
+            else:
+              # Top Double Click, Level/Age mode: switch to Debug mode
+              - display.page.show: page_dbg
+              - script.execute: timer_backlight
+              - component.update: ttgo_display
+      - timing:
+        - ON for at least 1.5s
+        then:
+          if:
+            condition:
+              display.is_displaying_page: page_gauge
+            then:
+              # Top Long Click, Level mode: calibrate full
+              - display.page.show: page_set_full
+              - script.execute: timer_backlight
+              - component.update: ttgo_display
+            else:
+              if:
+                condition:
+                  display.is_displaying_page: page_age
+                then:
+                  # Top Long Click, Age mode: cancel
+                  - display.page.show: page_load_torp
+                  - script.execute: timer_backlight
+                  - component.update: ttgo_display
+
+  #
+  # Bottom button (wrt USB on DX side)
+  #
+  - platform: gpio
+    pin:
+      number: GPIO0
+      inverted: true
+      mode: INPUT_PULLUP
+    id: button_input_0
+    on_click:
+      then:
+        if:
+          condition:
+            switch.is_off: backlight
+          then:
+            - script.execute: timer_backlight
+          else:
+            if:
+              condition:
+                display.is_displaying_page: page_gauge
+              then:
+                # Bottom Single Click, Level mode: switch to Age mode
+                - display.page.show: page_age
+                - script.execute: timer_backlight
+                - component.update: ttgo_display
+              else:
+                if:
+                  condition:
+                    display.is_displaying_page: page_age
+                  then:
+                    # Bottom Single Click, Age mode: switch to Level mode
+                    - display.page.show: page_gauge
+                    - script.execute: timer_backlight
+                    - component.update: ttgo_display
+                  else:
+                    if:
+                      condition:
+                        display.is_displaying_page: page_set_full
+                      then:
+                        # Bottom Single Click, Calibrate Full mode: confirm set full
+                        - display.page.show: page_calibrating
+                        - script.execute: timer_backlight
+                        - delay: 5s
+                        - lambda: |-
+                            id(raw_full) = id(base_beer_level).raw_state;
+                            id(prev_x) = 200.0;
+                        - display.page.show: page_load_torp
+                        - script.execute: timer_backlight
+                        - component.update: ttgo_display
+                      else:
+                        if:
+                          condition:
+                            display.is_displaying_page: page_set_empty
+                          then:
+                            # Bottom Single Click, Calibrate Empty mode: cancel
+                            - display.page.show: page_gauge
+                            - script.execute: timer_backlight
+                            - component.update: ttgo_display
+                          else:
+                            if:
+                              condition:
+                                display.is_displaying_page: page_load_torp
+                              then:
+                                # Bottom Single Click, Age reset: confirm reset age
+                                - lambda: |-
+                                    id(torp_time) = id(esp_time).now().timestamp;
+                                - display.page.show: page_age
+                                - script.execute: timer_backlight
+                                - component.update: ttgo_display
+    on_multi_click:
+      - timing:
+        - ON for at least 1.5s
+        then:
+          if:
+            condition:
+              display.is_displaying_page: page_gauge
+            then:
+              # Bottom Long Click, Level mode: calibrate empty
+              - display.page.show: page_set_empty
+              - script.execute: timer_backlight
+              - component.update: ttgo_display
+            else:
+              if:
+                condition:
+                  display.is_displaying_page: page_age
+                then:
+                  # Top Long Click, Age mode: cancel
+                  # Lungo basso in modalità età, resetta il cambio
+                  - display.page.show: page_load_torp
+                  - script.execute: timer_backlight
+                  - component.update: ttgo_display
+
+  - platform: status
+    name: ${upper_devicename} Node Status
+    id: esphome_${deviceid}_system_status
+
+# button:
+#   - platform: template
+#     name: "Template Button"
+#     icon: "mdi:beer"
+#     icon: "mdi:beer-outline"
+#     on_press:
+#       - logger.log: Button Pressed
+
+switch:
+    # Implements two virtual switches to calibrate weight (e.g. from web interface) 
+  - platform: template
+    name: ${upper_devicename} Set Empty
+    id: sw_set_empty
+    lambda: 'return false;'
+    turn_on_action:
+      - lambda: |-
+          id(raw_empty) = id(base_beer_level).raw_state;
+          id(prev_x) = 0.0;
+  - platform: template
+    name: ${upper_devicename} Set Full
+    id: sw_set_full
+    lambda: 'return false;'
+    turn_on_action:
+      - lambda: |-
+          id(raw_full) = id(base_beer_level).raw_state;
+          id(prev_x) = 200.0;
+
+  - platform: template
+    name: ${upper_devicename} Load Torp
+    id: sw_load_torp
+    lambda: 'return false;'
+    turn_on_action:
+      - lambda: |-
+          id(torp_time) = id(esp_time).now().timestamp;
+
+  - platform: gpio
+    pin: GPIO4
+    name: ${upper_devicename} Backlight
+    id: backlight
+
+script:
+  - id: timer_backlight
+    mode: restart     # Light will be kept on during 1 minute since
+                      # the latest time the script is executed
+    then:
+      - switch.turn_on: backlight
+      - delay: 1 min
+      - switch.turn_off: backlight
+      - display.page.show: page_gauge
+      - component.update: ttgo_display
+
+  - id: run_loop
+    mode: restart
+    then:
+      - display.page.show: page_calibrating
+      - script.execute: timer_backlight
+      - delay: 5s
+      - display.page.show: page_gauge
+      - script.execute: timer_backlight
+      - component.update: ttgo_display
+
+spi:
+  clk_pin: GPIO18
+  mosi_pin: GPIO19
+
+#
+# Display size is 240x135 pixel
+#
+display:
+  - platform: st7789v
+    model: TTGO TDisplay 135x240
+    backlight_pin: GPIO4
+    cs_pin: GPIO5
+    dc_pin: GPIO16
+    reset_pin: GPIO23
+    rotation: 90°
+    update_interval: 0.2s
+    id: ttgo_display
+    pages:
+      - id: page_gauge
+        lambda: |-
+          auto color = id(color_grey);
+          auto gauge = id(display_beer_level).state;
+            if ( gauge<10.0*(200.0/60.0) ) {
+              color = id(color_grey); // color_red
+            } else if ( gauge<30.0*(200.0/60.0) ) {
+              color = id(color_grey); // color_orange
+            } else {
+              color = id(color_grey); // color_green
+            }
+          it.printf(235, 15, id(font_main), color, TextAlign::RIGHT, "%.0f cl", gauge);
+          if ( gauge>0.0 ) {
+            for (int i=0; i<int(gauge*60/200)+1; i++) {
+              if ( i<10 ) {
+                color = id(color_red);
+              } else if ( i<30 ) {
+                color = id(color_orange);
+              } else {
+                color = id(color_green);
+              }
+              it.filled_rectangle(1+4*i,99, 3,34, color);
+            }            
+          }
+          it.rectangle(0,99, 239,35, id(color_blue));
+      - id: page_age
+        lambda: |-
+          auto now = id(esp_time).now().timestamp;
+          int days = (now-id(torp_time))/86400;
+          it.printf(120, 18, id(font_msg), id(color_grey), TextAlign::CENTER, "Torp aperto");
+          if (days <1) {
+            it.printf(120, 68, id(font_main), id(color_grey), TextAlign::CENTER, "Oggi");
+          } else if (days==1) {
+            it.printf(120, 68, id(font_main), id(color_grey), TextAlign::CENTER, "Ieri");
+          } else {
+            it.printf(120, 68, id(font_main), id(color_grey), TextAlign::CENTER, "%d", days);            
+            it.printf(120, 110, id(font_msg), id(color_grey), TextAlign::CENTER, "giorni fa");            
+          }
+      - id: page_calibrating
+        lambda: |-
+          it.printf(120, 30, id(font_msg), id(color_grey), TextAlign::CENTER, "Calibrazione");
+          id(spinloop).next_frame();
+          it.image(90, 60, id(spinloop));
+      - id: page_set_full
+        lambda: |-
+          it.print(30, 33, id(font_msg), id(color_white), "IMPOSTA");
+          it.print(30, 66, id(font_msg), id(color_white), "PIENO");
+          it.printf(235,   4, id(font_button), id(color_grey), TextAlign::RIGHT, "ANNULLA");
+          it.printf(235, 110, id(font_button), id(color_grey), TextAlign::RIGHT, "CONFERMA");
+      - id: page_set_empty
+        lambda: |-
+          it.print(30, 33, id(font_msg), id(color_white), "IMPOSTA");
+          it.print(30, 66, id(font_msg), id(color_white), "VUOTO");
+          it.printf(235,   4, id(font_button), id(color_grey), TextAlign::RIGHT, "CONFERMA");
+          it.printf(235, 110, id(font_button), id(color_grey), TextAlign::RIGHT, "ANNULLA");
+      - id: page_load_torp
+        lambda: |-
+          it.print(30, 33, id(font_msg), id(color_white), "CAMBIO");
+          it.print(30, 66, id(font_msg), id(color_white), "TORP?");
+          it.printf(235,   4, id(font_button), id(color_grey), TextAlign::RIGHT, "ANNULLA");
+          it.printf(235, 110, id(font_button), id(color_grey), TextAlign::RIGHT, "CONFERMA");
+      - id: page_dbg
+        lambda: |-
+          it.printf(  5,   8, id(font_dbg), id(color_white), TextAlign::LEFT, "Empty: %.0f", id(raw_empty));
+          it.printf(  5,  38, id(font_dbg), id(color_white), TextAlign::LEFT, "Full: %.0f", id(raw_full));
+          it.printf(  5,  68, id(font_dbg), id(color_white), TextAlign::LEFT, "Raw: %.0f", id(base_beer_level).raw_state);
+          it.strftime(5,  98, id(font_dbg), id(color_white), TextAlign::LEFT, "Time: %Y-%m-%d %H:%M", ESPTime::from_epoch_local(id(torp_time)));
