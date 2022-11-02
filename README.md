@@ -23,7 +23,7 @@ The code is written with [EspHome](https://esphome.io/) to integrate with [Home 
 <p align="center">
   <img src="schema/Schema.png" width="100%"/>
 </p>
-Wiring schema is really simple: just connect together, according to the respective color, the wires of the four load cells, then connect them to te input side of the HX711 ADC board.
+Wiring schema is really simple: just connect together, according to the respective color, the wires of the four load cells, then connect them to the input side of the HX711 ADC board.
 
 In so doing, DON'T TRUST THE COLOR CODING and ask the vendor for the right connection (i.e. which color goes in which input; in my case it was Red<->E+, Black<->E-, White<->A- and Green<->A+).
 
