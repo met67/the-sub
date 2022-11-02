@@ -50,9 +50,9 @@ while this is a look from above:
 After having compiled and flashed the YAML, you need to calibrate the scale in order to correctly measure the beer inside your Torp.
 
 ### Calibration
-First load an empty Torp in The Sub, then hold the bottom buttom for at least 1.5 seconds: the display should prompt a confirmation text, confirm with a single click on the top button and let the empty calibration complete.
+First load an empty Torp in The Sub, then hold the bottom button for at least 1.5 seconds: the display should prompt a confirmation text, confirm with a single click on the top button and let the empty calibration complete.
 
-Then load a full Torp, hold the top buttom for at least 1.5 seconds, confirm by clicking on the bottom button and let the full calibration complete. After the full calibration is completed, it will prompt you to confirm that you loaded a new Torp, in order to reset the Torp age.
+Then load a full Torp, hold the top button for at least 1.5 seconds, confirm by clicking on the bottom button and let the full calibration complete. After the full calibration is completed, it will prompt you to confirm that you loaded a new Torp, in order to reset the Torp age.
 
 ### Usage
 The display will turn off after 1 minute, you can turn it back on by clicking one of the buttons.
