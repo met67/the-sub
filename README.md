@@ -1,7 +1,7 @@
 # The Sub beer meter
 If you own a [The Sub](https://www.beerwulf.com/en-gb/the-sub) beer tap, you will probably miss a level indicator that shows you how much beer is left inside your loaded Torp...
 
-This project uses a custom built scale connected to an ESP32 with an LCD to show a gauge level of how much beer is available for your pours. As an added bonus, the stand used to hold The Sub has ventilation holes that improve the air circulation and enhance the refrigeration efficiency.
+This project uses four load cells to build a custom scale connected to an ESP32 with an LCD to show a gauge level of how much beer is available for your pours. As an added bonus, the stand used to hold The Sub has ventilation holes that improve the air circulation and enhance the refrigeration efficiency.
 <p align="center">
   <img src="photo/Result.jpg" width="40%"/>
 </p>
