@@ -521,38 +521,38 @@ display:
         lambda: |-
           auto now = id(esp_time).now().timestamp;
           int days = (now-id(torp_time))/86400;
-          it.printf(120, 18, id(font_msg), id(color_grey), TextAlign::CENTER, "Torp aperto");
+          it.printf(120, 18, id(font_msg), id(color_grey), TextAlign::CENTER, "Torp loaded");
           if (days <1) {
-            it.printf(120, 68, id(font_main), id(color_grey), TextAlign::CENTER, "Oggi");
+            it.printf(120, 68, id(font_main), id(color_grey), TextAlign::CENTER, "Today");
           } else if (days==1) {
-            it.printf(120, 68, id(font_main), id(color_grey), TextAlign::CENTER, "Ieri");
+            it.printf(120, 68, id(font_main), id(color_grey), TextAlign::CENTER, "Yesterday");
           } else {
             it.printf(120, 68, id(font_main), id(color_grey), TextAlign::CENTER, "%d", days);            
-            it.printf(120, 110, id(font_msg), id(color_grey), TextAlign::CENTER, "giorni fa");            
+            it.printf(120, 110, id(font_msg), id(color_grey), TextAlign::CENTER, "days ago");            
           }
       - id: page_calibrating
         lambda: |-
-          it.printf(120, 30, id(font_msg), id(color_grey), TextAlign::CENTER, "Calibrazione");
+          it.printf(120, 30, id(font_msg), id(color_grey), TextAlign::CENTER, "Calibrating");
           id(spinloop).next_frame();
           it.image(90, 60, id(spinloop));
       - id: page_set_full
         lambda: |-
-          it.print(30, 33, id(font_msg), id(color_white), "IMPOSTA");
-          it.print(30, 66, id(font_msg), id(color_white), "PIENO");
-          it.printf(235,   4, id(font_button), id(color_grey), TextAlign::RIGHT, "ANNULLA");
-          it.printf(235, 110, id(font_button), id(color_grey), TextAlign::RIGHT, "CONFERMA");
+          it.print(30, 33, id(font_msg), id(color_white), "SET");
+          it.print(30, 66, id(font_msg), id(color_white), "FULL LEVEL");
+          it.printf(235,   4, id(font_button), id(color_grey), TextAlign::RIGHT, "CANCEL");
+          it.printf(235, 110, id(font_button), id(color_grey), TextAlign::RIGHT, "CONFIRM");
       - id: page_set_empty
         lambda: |-
-          it.print(30, 33, id(font_msg), id(color_white), "IMPOSTA");
-          it.print(30, 66, id(font_msg), id(color_white), "VUOTO");
-          it.printf(235,   4, id(font_button), id(color_grey), TextAlign::RIGHT, "CONFERMA");
-          it.printf(235, 110, id(font_button), id(color_grey), TextAlign::RIGHT, "ANNULLA");
+          it.print(30, 33, id(font_msg), id(color_white), "SET");
+          it.print(30, 66, id(font_msg), id(color_white), "EMPTY LEVEL");
+          it.printf(235,   4, id(font_button), id(color_grey), TextAlign::RIGHT, "CONFIRM");
+          it.printf(235, 110, id(font_button), id(color_grey), TextAlign::RIGHT, "CANCEL");
       - id: page_load_torp
         lambda: |-
-          it.print(30, 33, id(font_msg), id(color_white), "CAMBIO");
-          it.print(30, 66, id(font_msg), id(color_white), "TORP?");
-          it.printf(235,   4, id(font_button), id(color_grey), TextAlign::RIGHT, "ANNULLA");
-          it.printf(235, 110, id(font_button), id(color_grey), TextAlign::RIGHT, "CONFERMA");
+          it.print(30, 33, id(font_msg), id(color_white), "LOADED");
+          it.print(30, 66, id(font_msg), id(color_white), "NEW TORP?");
+          it.printf(235,   4, id(font_button), id(color_grey), TextAlign::RIGHT, "CANCEL");
+          it.printf(235, 110, id(font_button), id(color_grey), TextAlign::RIGHT, "CONFIRM");
       - id: page_dbg
         lambda: |-
           it.printf(  5,   8, id(font_dbg), id(color_white), TextAlign::LEFT, "Empty: %.0f", id(raw_empty));
