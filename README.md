@@ -59,5 +59,5 @@ The display will turn off after 1 minute, you can turn it back on by clicking on
 
 When pouring a pint of beer, the display will turn on and the indicator will freeze until you release the pressure (after all this is a scale and it would jump to full load under pressure...).
 
-You can change from level disply to torp age display by clicking one of the buttons.
+You can change from level display to torp age display by clicking one of the buttons.
 
